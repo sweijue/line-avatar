@@ -119,16 +119,23 @@ footer { text-align: center; margin-top: 26px; font-size: 12px; color: var(--tex
 </head>
 <body>
 
-<div id="claudeBanner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#1a1a1a;color:#fff;font-family:sans-serif;font-size:13px;padding:12px 16px;text-align:center;line-height:1.7;border-top:1px solid #333">
-  在 Claude 預覽中<b>不支援下載</b>，請前往完整版製作並下載：<br>
-  <a href="https://sweijue.github.io/line-avatar/" target="_blank" style="color:#06C755;font-weight:700;text-decoration:none">https://sweijue.github.io/line-avatar/</a>
-  <button onclick="document.getElementById('claudeBanner').style.display='none'" style="margin-left:16px;background:transparent;border:1px solid #555;color:#aaa;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:12px">關閉</button>
+<div id="claudeBanner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#1a1a1a;color:#fff;font-family:sans-serif;font-size:13px;padding:12px 20px;text-align:center;line-height:1.8;border-top:1px solid #333">
+  此預覽<b>不支援下載</b>，請前往
+  <a href="https://sweijue.github.io/line-avatar/" target="_blank" style="color:#06C755;font-weight:700;text-decoration:none">完整版網站</a>
+  製作並下載
+  <button onclick="document.getElementById('claudeBanner').style.display='none'" style="margin-left:14px;background:transparent;border:1px solid #555;color:#aaa;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:12px">關閉</button>
 </div>
 <script>
-// Detect Claude artifact / sandboxed iframe
-if (window.self !== window.top || window.location.href.includes('claude.ai') || window.location.href.includes('anthropic')) {
-  document.getElementById('claudeBanner').style.display = 'block';
-}
+(function() {
+  var show = false;
+  // in iframe
+  if (window.self !== window.top) show = true;
+  // referrer contains claude.ai
+  if (document.referrer && document.referrer.includes('claude.ai')) show = true;
+  // current url contains artifact id
+  if (window.location.href.includes('e0b9297e-1693-43b8-8d20-4f9c1d04af14')) show = true;
+  if (show) document.getElementById('claudeBanner').style.display = 'block';
+})();
 </script>
 <header>
   <div class="logo">
