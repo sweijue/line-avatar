@@ -119,11 +119,16 @@ footer { text-align: center; margin-top: 26px; font-size: 12px; color: var(--tex
 </head>
 <body>
 
-<div style="position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#1a1a1a;color:#fff;font-family:sans-serif;font-size:13px;padding:11px 20px;text-align:center;line-height:1.8;border-top:1px solid #333">
-  由 claude.ai 開啟的網址<b>無法下載</b>，請前往
+<div id="claudeBanner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#1a1a1a;color:#fff;font-family:sans-serif;font-size:13px;padding:11px 20px;text-align:center;line-height:1.8;border-top:1px solid #333">
+  如果是由 claude.ai 開啟的（網址內有 claude.ai）無法支援下載，請前往
   <a href="https://sweijue.github.io/line-avatar/" target="_blank" style="color:#06C755;font-weight:700;text-decoration:none">完整版網頁</a>
   下載
 </div>
+<script>
+if (window.location.href.includes('claude.ai') || document.referrer.includes('claude.ai') || window.self !== window.top) {
+  document.getElementById('claudeBanner').style.display = 'block';
+}
+</script>
 <header>
   <div class="logo">
     <div class="logo-icon">
