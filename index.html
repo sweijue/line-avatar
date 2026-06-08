@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LINE 文字頭貼製作</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f0f0ed; --surface: #fff; --surface2: #f7f7f5;
+  --border: rgba(0,0,0,0.1); --border2: rgba(0,0,0,0.18);
+  --text: #1a1a1a; --text2: #666; --text3: #999;
+  --accent: #06C755; --accent-dark: #05a847;
+  --radius: 12px; --radius-sm: 8px;
+}
+body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px 16px 48px; }
+header { text-align: center; margin-bottom: 22px; }
+.logo { display: inline-flex; align-items: center; gap: 8px; background: var(--accent); color: #fff; padding: 6px 16px 6px 10px; border-radius: 100px; font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+.logo-icon { width: 22px; height: 22px; background: #fff; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.logo-icon svg { width: 14px; height: 14px; fill: var(--accent); }
+h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+h1 span { color: var(--accent); }
+.sub { font-size: 13px; color: var(--text3); margin-top: 4px; }
+.main { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+
+/* ── Preview bar ── */
+.preview-bar {
+  background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border);
+  padding: 22px 24px; display: flex; flex-direction: column; align-items: center; gap: 20px;
+}
+.previews { display: flex; gap: 32px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+.preview-item { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+/* canvas wrapper — NO overflow:hidden so border shows fully */
+.sq-wrap {
+  width: 200px; height: 200px; border-radius: 10px;
+  box-shadow: 0 0 0 1.5px var(--border2), 0 3px 14px rgba(0,0,0,0.08);
+  overflow: hidden;
+}
+.ci-wrap {
+  width: 200px; height: 200px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 3px 14px rgba(0,0,0,0.08);
+}
+#sqCanvas, #ciCanvas { display: block; width: 200px; height: 200px; }
+
+/* border preview labels + controls inline under each canvas */
+.preview-label { font-size: 10px; color: var(--text3); letter-spacing: 0.04em; text-transform: uppercase; }
+
+.border-inline {
+  display: flex; flex-direction: column; gap: 6px; align-items: center; width: 200px;
+}
+.border-toggle-row { display: flex; gap: 5px; }
+.bchip {
+  padding: 3px 10px; font-size: 11px; font-weight: 500; font-family: inherit;
+  border: 1px solid var(--border2); border-radius: 100px; cursor: pointer;
+  background: transparent; color: var(--text2); transition: background 0.1s, color 0.1s;
+}
+.bchip:hover { background: var(--surface2); }
+.bchip.on { background: var(--text); color: #fff; border-color: var(--text); }
+.border-detail { display: none; flex-direction: column; gap: 5px; width: 100%; }
+.border-detail.show { display: flex; }
+.border-color-row { display: flex; align-items: center; gap: 6px; }
+input[type=color].sm { width: 26px; height: 26px; border: 1px solid var(--border2); border-radius: 5px; padding: 1px; cursor: pointer; background: none; flex-shrink: 0; }
+.mini-swatches { display: flex; gap: 4px; flex-wrap: wrap; }
+.mswatch { width: 20px; height: 20px; border-radius: 4px; cursor: pointer; border: 1.5px solid transparent; transition: transform 0.1s, border-color 0.1s; flex-shrink: 0; }
+.mswatch:hover { transform: scale(1.15); }
+.mswatch.active { border-color: var(--text); }
+.bw-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text2); }
+.bw-row input[type=range] { flex: 1; accent-color: var(--accent); }
+.bw-row .val { font-size: 11px; font-weight: 600; color: var(--text); min-width: 24px; text-align: right; }
+
+.preview-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; }
+.btn-primary { padding: 9px 18px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.15s, transform 0.1s; white-space: nowrap; }
+.btn-primary:hover { background: var(--accent-dark); }
+.btn-primary:active { transform: scale(0.97); }
+.btn-secondary { padding: 8px 14px; background: transparent; color: var(--text2); border: 1px solid var(--border2); border-radius: var(--radius-sm); font-size: 12px; font-family: inherit; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: background 0.12s; white-space: nowrap; }
+.btn-secondary:hover { background: var(--surface2); }
+.dl-size-btn { padding: 6px 11px; font-size: 11px; font-family: inherit; border: 1px solid var(--border2); border-radius: 100px; cursor: pointer; background: transparent; color: var(--text2); transition: background 0.1s, color 0.1s; }
+.dl-size-btn.on { background: var(--text); color: #fff; border-color: var(--text); }
+.dl-group { display: flex; gap: 5px; align-items: center; }
+
+/* ── Controls ── */
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 580px) { .controls { grid-template-columns: 1fr; } .sq-wrap,.ci-wrap,#sqCanvas,#ciCanvas { width: 140px; height: 140px; } .border-inline { width: 140px; } }
+.card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 15px 17px; }
+.card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); margin-bottom: 11px; }
+.field { margin-bottom: 9px; }
+.field:last-child { margin-bottom: 0; }
+.field-label { font-size: 12px; color: var(--text2); margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+.field-label .val { font-weight: 600; color: var(--text); font-size: 12px; }
+textarea { width: 100%; padding: 8px 10px; font-size: 15px; font-family: inherit; border: 1px solid var(--border2); border-radius: var(--radius-sm); background: var(--surface2); color: var(--text); resize: vertical; min-height: 54px; line-height: 1.5; outline: none; transition: border-color 0.15s; }
+textarea:focus { border-color: var(--accent); }
+select { width: 100%; padding: 7px 10px; font-size: 13px; font-family: inherit; border: 1px solid var(--border2); border-radius: var(--radius-sm); background: var(--surface2); color: var(--text); outline: none; cursor: pointer; }
+input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+.color-row { display: flex; align-items: center; gap: 7px; }
+input[type=color] { width: 30px; height: 30px; border: 1px solid var(--border2); border-radius: 6px; padding: 2px; cursor: pointer; background: none; flex-shrink: 0; }
+.swatches { display: flex; flex-wrap: wrap; gap: 5px; }
+.swatch { width: 22px; height: 22px; border-radius: 5px; cursor: pointer; border: 1.5px solid transparent; transition: transform 0.1s, border-color 0.1s; flex-shrink: 0; }
+.swatch:hover { transform: scale(1.15); }
+.swatch.active { border-color: var(--text); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.chip { padding: 3px 9px; font-size: 11px; font-weight: 500; font-family: inherit; border: 1px solid var(--border2); border-radius: 100px; cursor: pointer; background: transparent; color: var(--text2); transition: background 0.1s, color 0.1s; }
+.chip:hover { background: var(--surface2); }
+.chip.on { background: var(--text); color: #fff; border-color: var(--text); }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.scale-note { font-size: 11px; color: var(--text3); margin-top: 3px; }
+.upload-zone { border: 1.5px dashed var(--border2); border-radius: var(--radius-sm); padding: 10px; text-align: center; cursor: pointer; font-size: 12px; color: var(--text3); transition: border-color 0.15s, background 0.15s; position: relative; }
+.upload-zone:hover { border-color: var(--accent); background: rgba(6,199,85,0.04); color: var(--accent); }
+.upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.upload-zone.has-img { border-style: solid; border-color: var(--accent); color: var(--accent); }
+footer { text-align: center; margin-top: 26px; font-size: 12px; color: var(--text3); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 14 14"><path d="M7 1C3.686 1 1 3.328 1 6.2c0 1.854 1.04 3.488 2.62 4.47-.115.43-.44 1.558-.505 1.8-.08.3.11.296.23.216.094-.065 1.497-1.018 2.107-1.432.5.07 1.016.106 1.548.106 3.314 0 6-2.328 6-5.2C13 3.328 10.314 1 7 1z"/></svg>
+    </div>
+    LINE 頭貼製作
+  </div>
+  <h1>LINE 文字頭貼 <span>製作工具</span></h1>
+  <p class="sub">調整文字、顏色、大小，一鍵下載 PNG</p>
+</header>
+
+<div class="main">
+
+  <!-- ── 預覽區 ── -->
+  <div class="preview-bar">
+    <div class="previews">
+
+      <!-- 方形預覽 + 方形邊框控制 -->
+      <div class="preview-item">
+        <div class="sq-wrap"><canvas id="sqCanvas" width="200" height="200"></canvas></div>
+        <div class="preview-label">方形原圖</div>
+        <div class="border-inline" id="sqBorderWrap">
+          <div class="border-toggle-row">
+            <button class="bchip on" data-target="sq" data-v="none">無邊框</button>
+            <button class="bchip" data-target="sq" data-v="on">方形邊框</button>
+          </div>
+          <div class="border-detail" id="sqBorderDetail">
+            <div class="border-color-row">
+              <input type="color" class="sm" id="sqBorderColor" value="#FFFFFF">
+              <div class="mini-swatches" id="sqBorderSwatches">
+                <div class="mswatch active" data-c="#FFFFFF" style="background:#fff;border-color:#ddd"></div>
+                <div class="mswatch" data-c="#1C1C1E" style="background:#1C1C1E"></div>
+                <div class="mswatch" data-c="#FBBC04" style="background:#FBBC04"></div>
+                <div class="mswatch" data-c="#EA4335" style="background:#EA4335"></div>
+                <div class="mswatch" data-c="#06C755" style="background:#06C755"></div>
+                <div class="mswatch" data-c="#1A73E8" style="background:#1A73E8"></div>
+                <div class="mswatch" data-c="#9C27B0" style="background:#9C27B0"></div>
+              </div>
+            </div>
+            <div class="bw-row">
+              <span>粗細</span>
+              <input type="range" id="sqBorderWidth" min="1" max="30" step="1" value="6">
+              <span class="val" id="sqBorderWidthVal">6</span>px
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 圓形預覽 + 圓形邊框控制 -->
+      <div class="preview-item">
+        <div class="ci-wrap"><canvas id="ciCanvas" width="200" height="200"></canvas></div>
+        <div class="preview-label">圓形顯示</div>
+        <div class="border-inline" id="ciBorderWrap">
+          <div class="border-toggle-row">
+            <button class="bchip on" data-target="ci" data-v="none">無邊框</button>
+            <button class="bchip" data-target="ci" data-v="on">圓形邊框</button>
+          </div>
+          <div class="border-detail" id="ciBorderDetail">
+            <div class="border-color-row">
+              <input type="color" class="sm" id="ciBorderColor" value="#FFFFFF">
+              <div class="mini-swatches" id="ciBorderSwatches">
+                <div class="mswatch active" data-c="#FFFFFF" style="background:#fff;border-color:#ddd"></div>
+                <div class="mswatch" data-c="#1C1C1E" style="background:#1C1C1E"></div>
+                <div class="mswatch" data-c="#FBBC04" style="background:#FBBC04"></div>
+                <div class="mswatch" data-c="#EA4335" style="background:#EA4335"></div>
+                <div class="mswatch" data-c="#06C755" style="background:#06C755"></div>
+                <div class="mswatch" data-c="#1A73E8" style="background:#1A73E8"></div>
+                <div class="mswatch" data-c="#9C27B0" style="background:#9C27B0"></div>
+              </div>
+            </div>
+            <div class="bw-row">
+              <span>粗細</span>
+              <input type="range" id="ciBorderWidth" min="1" max="30" step="1" value="6">
+              <span class="val" id="ciBorderWidthVal">6</span>px
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 按鈕列 -->
+    <div class="preview-actions">
+      <div class="dl-group">
+        <button class="dl-size-btn" data-px="480">480px</button>
+        <button class="dl-size-btn on" data-px="640">640px</button>
+        <button class="dl-size-btn" data-px="1000">1000px</button>
+      </div>
+      <button class="btn-primary" id="dlBtn" type="button">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        下載 PNG
+      </button>
+      <button class="btn-secondary" id="randomBtn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+        隨機配色
+      </button>
+      <button class="btn-secondary" id="resetBtn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.6"/></svg>
+        重設
+      </button>
+    </div>
+  </div>
+
+  <!-- ── 控制項 ── -->
+  <div class="controls">
+
+    <!-- 左欄 -->
+    <div style="display:flex;flex-direction:column;gap:14px">
+
+      <div class="card">
+        <div class="card-title">大小與粗細</div>
+        <div class="field">
+          <div class="field-label">縮小比例 <span class="val" id="sizeVal">100%</span></div>
+          <input type="range" id="sizeScale" min="30" max="100" step="1" value="100">
+          <p class="scale-note">文字自動填滿方形範圍，拉桿可縮小</p>
+        </div>
+        <div class="field" style="margin-top:8px">
+          <div class="field-label">字體粗細</div>
+          <div class="chips" style="margin-top:2px">
+            <button class="chip" data-w="400">標準</button>
+            <button class="chip on" data-w="700">粗體</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">細部調整</div>
+        <div class="two-col">
+          <div class="field">
+            <div class="field-label">行距 <span class="val" id="lhVal">1.10</span></div>
+            <input type="range" id="lineHeight" min="0.5" max="2.5" step="0.05" value="1.1">
+          </div>
+          <div class="field">
+            <div class="field-label">字間距 <span class="val" id="lsVal">0</span></div>
+            <input type="range" id="letterSpacing" min="-20" max="80" step="1" value="0">
+          </div>
+          <div class="field">
+            <div class="field-label">水平偏移 <span class="val" id="posXVal">0</span></div>
+            <input type="range" id="posX" min="-150" max="150" step="1" value="0">
+          </div>
+          <div class="field">
+            <div class="field-label">垂直偏移 <span class="val" id="posYVal">0</span></div>
+            <input type="range" id="posY" min="-150" max="150" step="1" value="0">
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 右欄 -->
+    <div style="display:flex;flex-direction:column;gap:14px">
+
+      <div class="card">
+        <div class="card-title">文字</div>
+        <div class="field">
+          <div class="field-label">文字內容（換行請按 Enter）</div>
+          <textarea id="textInput" rows="2">文字</textarea>
+        </div>
+        <div class="field">
+          <div class="field-label">字型</div>
+          <div class="chips" id="fontChips" style="margin-top:2px">
+            <button class="chip on" data-font="'Noto Sans TC', sans-serif">黑體</button>
+            <button class="chip" data-font="'Noto Serif TC', serif">明體</button>
+          </div>
+        </div>
+        <div class="field">
+          <div class="field-label">文字顏色</div>
+          <div class="color-row">
+            <input type="color" id="txtColor" value="#FFFFFF">
+            <div class="swatches" id="txtSwatches">
+              <div class="swatch active" data-c="#FFFFFF" style="background:#FFFFFF;border:1px solid #ddd"></div>
+              <div class="swatch" data-c="#1C1C1E" style="background:#1C1C1E"></div>
+              <div class="swatch" data-c="#FF6D00" style="background:#FF6D00"></div>
+              <div class="swatch" data-c="#FBBC04" style="background:#FBBC04"></div>
+              <div class="swatch" data-c="#EA4335" style="background:#EA4335"></div>
+              <div class="swatch" data-c="#06C755" style="background:#06C755"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">底色 / 背景</div>
+        <div class="field">
+          <div class="field-label">純色背景</div>
+          <div class="color-row">
+            <input type="color" id="bgColor" value="#06C755">
+            <div class="swatches" id="bgSwatches">
+              <div class="swatch active" data-c="#06C755" style="background:#06C755"></div>
+              <div class="swatch" data-c="#1A73E8" style="background:#1A73E8"></div>
+              <div class="swatch" data-c="#EA4335" style="background:#EA4335"></div>
+              <div class="swatch" data-c="#FBBC04" style="background:#FBBC04"></div>
+              <div class="swatch" data-c="#FF6D00" style="background:#FF6D00"></div>
+              <div class="swatch" data-c="#9C27B0" style="background:#9C27B0"></div>
+              <div class="swatch" data-c="#E91E63" style="background:#E91E63"></div>
+              <div class="swatch" data-c="#00BCD4" style="background:#00BCD4"></div>
+              <div class="swatch" data-c="#1C1C1E" style="background:#1C1C1E"></div>
+              <div class="swatch" data-c="#FFFFFF" style="background:#FFFFFF;border:1px solid #ddd"></div>
+            </div>
+          </div>
+        </div>
+        <div class="field" style="margin-top:6px">
+          <div class="field-label" style="margin-bottom:6px">上傳背景圖片</div>
+          <div class="upload-zone" id="uploadZone">
+            <input type="file" id="bgUpload" accept="image/*">
+            <span id="uploadLabel">點擊上傳 JPG / PNG / WebP</span>
+          </div>
+          <div id="clearBgWrap" style="display:none;margin-top:6px">
+            <button class="btn-secondary" id="clearBgBtn" style="width:100%;font-size:11px;padding:5px">移除背景圖片</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<footer>免費工具，下載即用 · 不上傳任何資料</footer>
+
+<script>
+const sqCanvas = document.getElementById('sqCanvas');
+const sqCtx = sqCanvas.getContext('2d');
+const ciCanvas = document.getElementById('ciCanvas');
+const ciCtx = ciCanvas.getContext('2d', { alpha: true });
+const measureCanvas = document.createElement('canvas');
+measureCanvas.width = 200; measureCanvas.height = 200;
+const mCtx = measureCanvas.getContext('2d');
+const W = 200;
+const g = id => document.getElementById(id);
+
+let bgImage = null;
+let dlSize = 640;
+let fontWeight = 700;
+let currentFont = "'Noto Sans TC', sans-serif";
+
+// border state per shape
+const border = {
+  sq: { on: false, color: '#FFFFFF', width: 6 },
+  ci: { on: false, color: '#FFFFFF', width: 6 }
+};
+
+// ── colour helpers ──
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    const c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    return Math.round(255 * c).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+function hexLuminance(hex) {
+  const r = parseInt(hex.slice(1,3),16)/255, gb = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255;
+  const toL = c => c <= 0.03928 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4);
+  return 0.2126*toL(r) + 0.7152*toL(gb) + 0.0722*toL(b);
+}
+function contrastRatio(h1, h2) {
+  const l1 = hexLuminance(h1), l2 = hexLuminance(h2);
+  return (Math.max(l1,l2)+0.05)/(Math.min(l1,l2)+0.05);
+}
+function randomHsl() { return { h: Math.random()*360, s: 40+Math.random()*55, l: 20+Math.random()*65 }; }
+function randomContrastPair() {
+  for (let i = 0; i < 60; i++) {
+    const bg = randomHsl(), txt = randomHsl();
+    const bh = hslToHex(bg.h,bg.s,bg.l), th = hslToHex(txt.h,txt.s,txt.l);
+    if (contrastRatio(bh,th) >= 3.5) return [bh, th];
+  }
+  const bg = randomHsl(), bh = hslToHex(bg.h,bg.s,bg.l);
+  return [bh, hexLuminance(bh)>0.35 ? '#1C1C1E' : '#FFFFFF'];
+}
+
+function getLines() { return (g('textInput').value || ' ').split('\n').slice(0, 10); }
+
+function getState() {
+  return {
+    bg: g('bgColor').value, txt: g('txtColor').value, font: currentFont,
+    weight: fontWeight,
+    scale: parseInt(g('sizeScale').value) / 100,
+    lh: parseFloat(g('lineHeight').value),
+    ls: parseInt(g('letterSpacing').value),
+    px: parseInt(g('posX').value), py: parseInt(g('posY').value)
+  };
+}
+
+function calcSquareFit(lines, maxDim, st, c) {
+  let lo = 4, hi = maxDim * 2;
+  for (let i = 0; i < 45; i++) {
+    const mid = (lo + hi) / 2;
+    c.font = `${st.weight} ${mid}px ${st.font}`;
+    let maxW = 0;
+    lines.forEach(line => {
+      let w = 0;
+      for (let ci = 0; ci < line.length; ci++) w += c.measureText(line[ci]).width + (ci < line.length-1 ? st.ls : 0);
+      maxW = Math.max(maxW, w);
+    });
+    (maxW <= maxDim && mid * st.lh * lines.length <= maxDim) ? (lo = mid) : (hi = mid);
+  }
+  return Math.floor(lo);
+}
+
+function drawTextOnCtx(c, size, lines, st, cx, cy, lsOvr) {
+  const ls = lsOvr !== undefined ? lsOvr : st.ls;
+  c.font = `${st.weight} ${size}px ${st.font}`;
+  c.fillStyle = st.txt; c.textBaseline = 'alphabetic';
+  const lh = size * st.lh, totalH = lh * lines.length;
+  lines.forEach((line, li) => {
+    let lw = 0;
+    for (let ci = 0; ci < line.length; ci++) lw += c.measureText(line[ci]).width + (ci < line.length-1 ? ls : 0);
+    const y = cy - totalH/2 + li*lh + size*0.85;
+    let x = cx - lw/2;
+    for (let ci = 0; ci < line.length; ci++) { c.fillText(line[ci], x, y); x += c.measureText(line[ci]).width + ls; }
+  });
+}
+
+function drawBg(c, size, st) {
+  c.clearRect(0, 0, size, size);
+  if (bgImage) {
+    const r = bgImage.width/bgImage.height;
+    let sx=0, sy=0, sw=bgImage.width, sh=bgImage.height;
+    if (r > 1) { sw=bgImage.height; sx=(bgImage.width-sw)/2; } else { sh=bgImage.width; sy=(bgImage.height-sh)/2; }
+    c.drawImage(bgImage, sx, sy, sw, sh, 0, 0, size, size);
+  } else { c.fillStyle = st.bg; c.fillRect(0, 0, size, size); }
+}
+
+function drawSqBorder(c, size, b) {
+  if (!b.on) return;
+  const half = b.width / 2;
+  c.strokeStyle = b.color; c.lineWidth = b.width;
+  c.strokeRect(half, half, size - b.width, size - b.width);
+}
+
+function drawCiBorder(c, size, b) {
+  if (!b.on) return;
+  const half = b.width / 2;
+  c.strokeStyle = b.color; c.lineWidth = b.width;
+  c.beginPath(); c.arc(size/2, size/2, size/2 - half, 0, Math.PI*2); c.stroke();
+}
+
+function render() {
+  const st = getState(), lines = getLines();
+  const maxSize = calcSquareFit(lines, W * 0.78, st, mCtx);
+  const size = Math.max(4, Math.floor(maxSize * st.scale));
+  const cx = W/2 + st.px, cy = W/2 + st.py;
+
+  // square canvas
+  drawBg(sqCtx, W, st);
+  drawTextOnCtx(sqCtx, size, lines, st, cx, cy);
+  drawSqBorder(sqCtx, W, border.sq);
+
+  // circle canvas — fully self-contained circular canvas
+  ciCtx.clearRect(0, 0, W, W);
+  ciCtx.save();
+  ciCtx.beginPath();
+  ciCtx.arc(W / 2, W / 2, W / 2, 0, Math.PI * 2);
+  ciCtx.clip();
+  drawBg(ciCtx, W, st);
+  drawTextOnCtx(ciCtx, size, lines, st, cx, cy);
+  ciCtx.restore();
+  // draw circle border outside clip so it sits on top, centered
+  if (border.ci.on) {
+    const half = border.ci.width / 2;
+    ciCtx.strokeStyle = border.ci.color;
+    ciCtx.lineWidth = border.ci.width;
+    ciCtx.beginPath();
+    ciCtx.arc(W / 2, W / 2, W / 2 - half, 0, Math.PI * 2);
+    ciCtx.stroke();
+  }
+
+  g('sizeVal').textContent = Math.round(st.scale * 100) + '%';
+  g('lhVal').textContent = st.lh.toFixed(2);
+  g('lsVal').textContent = st.ls;
+  g('posXVal').textContent = st.px;
+  g('posYVal').textContent = st.py;
+}
+
+['bgColor','textInput','txtColor','sizeScale','lineHeight','letterSpacing','posX','posY']
+  .forEach(id => g(id).addEventListener('input', render));
+
+// font chips
+document.querySelectorAll('.chip[data-font]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.chip[data-font]').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    currentFont = btn.dataset.font;
+    render();
+  });
+});
+
+// weight chips
+document.querySelectorAll('.chip[data-w]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.chip[data-w]').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on'); fontWeight = parseInt(btn.dataset.w); render();
+  });
+});
+
+// bg swatches
+document.querySelectorAll('#bgSwatches .swatch').forEach(s => {
+  s.addEventListener('click', () => {
+    g('bgColor').value = s.dataset.c;
+    document.querySelectorAll('#bgSwatches .swatch').forEach(x => x.classList.remove('active'));
+    s.classList.add('active'); render();
+  });
+});
+document.querySelectorAll('#txtSwatches .swatch').forEach(s => {
+  s.addEventListener('click', () => {
+    g('txtColor').value = s.dataset.c;
+    document.querySelectorAll('#txtSwatches .swatch').forEach(x => x.classList.remove('active'));
+    s.classList.add('active'); render();
+  });
+});
+
+// dl size
+document.querySelectorAll('.dl-size-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.dl-size-btn').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on'); dlSize = parseInt(btn.dataset.px);   });
+});
+
+// ── border toggle ──
+document.querySelectorAll('.bchip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = btn.dataset.target; // 'sq' or 'ci'
+    const val = btn.dataset.v;
+    document.querySelectorAll(`.bchip[data-target="${target}"]`).forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    border[target].on = val === 'on';
+    g(target + 'BorderDetail').classList.toggle('show', val === 'on');
+    render();
+  });
+});
+
+// border color inputs
+['sq','ci'].forEach(t => {
+  g(t + 'BorderColor').addEventListener('input', e => { border[t].color = e.target.value; render(); });
+  g(t + 'BorderWidth').addEventListener('input', e => {
+    border[t].width = parseInt(e.target.value);
+    g(t + 'BorderWidthVal').textContent = e.target.value;
+    render();
+  });
+  document.querySelectorAll(`#${t}BorderSwatches .mswatch`).forEach(s => {
+    s.addEventListener('click', () => {
+      border[t].color = s.dataset.c;
+      g(t + 'BorderColor').value = s.dataset.c;
+      document.querySelectorAll(`#${t}BorderSwatches .mswatch`).forEach(x => x.classList.remove('active'));
+      s.classList.add('active'); render();
+    });
+  });
+});
+
+// random
+g('randomBtn').addEventListener('click', () => {
+  bgImage = null; g('bgUpload').value = '';
+  g('uploadZone').classList.remove('has-img');
+  g('uploadLabel').textContent = '點擊上傳 JPG / PNG / WebP';
+  g('clearBgWrap').style.display = 'none';
+  const [bh, th] = randomContrastPair();
+  g('bgColor').value = bh; g('txtColor').value = th;
+  document.querySelectorAll('#bgSwatches .swatch').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('#txtSwatches .swatch').forEach(x => x.classList.remove('active'));
+  render();
+});
+
+// upload
+g('bgUpload').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => { bgImage = img; g('uploadZone').classList.add('has-img'); g('uploadLabel').textContent = '✓ ' + file.name; g('clearBgWrap').style.display = 'block'; render(); };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+g('clearBgBtn').addEventListener('click', () => {
+  bgImage = null; g('bgUpload').value = '';
+  g('uploadZone').classList.remove('has-img');
+  g('uploadLabel').textContent = '點擊上傳 JPG / PNG / WebP';
+  g('clearBgWrap').style.display = 'none'; render();
+});
+
+// download
+g('dlBtn').addEventListener('click', () => {
+  const HI = dlSize, scale = HI / W;
+  const hi = document.createElement('canvas');
+  hi.width = HI; hi.height = HI;
+  const hc = hi.getContext('2d');
+  const st = getState(), lines = getLines();
+  const maxSize = calcSquareFit(lines, W * 0.78, st, mCtx);
+  const hiSize = Math.max(4, Math.floor(maxSize * st.scale)) * scale;
+  const hiLs = st.ls * scale;
+
+  if (bgImage) {
+    const r = bgImage.width / bgImage.height;
+    let sx=0,sy=0,sw=bgImage.width,sh=bgImage.height;
+    if (r>1){sw=bgImage.height;sx=(bgImage.width-sw)/2;}else{sh=bgImage.width;sy=(bgImage.height-sh)/2;}
+    hc.drawImage(bgImage,sx,sy,sw,sh,0,0,HI,HI);
+  } else {
+    hc.fillStyle = st.bg;
+    hc.fillRect(0,0,HI,HI);
+  }
+  drawTextOnCtx(hc, hiSize, lines, st, HI/2+st.px*scale, HI/2+st.py*scale, hiLs);
+  if (border.sq.on) {
+    const half = border.sq.width*scale/2;
+    hc.strokeStyle = border.sq.color;
+    hc.lineWidth = border.sq.width*scale;
+    hc.strokeRect(half,half,HI-border.sq.width*scale,HI-border.sq.width*scale);
+  }
+  const img = hi.toDataURL('image/png');
+  const a = document.createElement('a');
+  a.href = img;
+  a.download = 'line_avatar_' + HI + '.png';
+  a.style.position = 'fixed';
+  a.style.top = '-9999px';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => document.body.removeChild(a), 500);
+});
+
+// reset
+g('resetBtn').addEventListener('click', () => {
+  bgImage = null; g('bgUpload').value = '';
+  g('uploadZone').classList.remove('has-img');
+  g('uploadLabel').textContent = '點擊上傳 JPG / PNG / WebP';
+  g('clearBgWrap').style.display = 'none';
+  g('bgColor').value = '#06C755'; g('textInput').value = '文字'; g('txtColor').value = '#FFFFFF';
+  
+  fontWeight = 700;
+  currentFont = "'Noto Sans TC', sans-serif";
+  document.querySelectorAll('.chip[data-font]').forEach(b => b.classList.remove('on'));
+  document.querySelector('.chip[data-font]').classList.add('on');
+  document.querySelectorAll('.chip[data-w]').forEach(b => b.classList.remove('on'));
+  document.querySelector('.chip[data-w="700"]').classList.add('on');
+  g('sizeScale').value = 100; g('lineHeight').value = 1.1;
+  g('letterSpacing').value = 0; g('posX').value = 0; g('posY').value = 0;
+  ['sq','ci'].forEach(t => {
+    border[t] = { on: false, color: '#FFFFFF', width: 6 };
+    document.querySelectorAll(`.bchip[data-target="${t}"]`).forEach(b => b.classList.remove('on'));
+    document.querySelector(`.bchip[data-target="${t}"][data-v="none"]`).classList.add('on');
+    g(t + 'BorderDetail').classList.remove('show');
+    g(t + 'BorderColor').value = '#FFFFFF'; g(t + 'BorderWidth').value = 6; g(t + 'BorderWidthVal').textContent = 6;
+    document.querySelectorAll(`#${t}BorderSwatches .mswatch`).forEach((s,i) => { s.classList.toggle('active', i===0); });
+  });
+  render();
+});
+
+// wait for fonts then render
+document.fonts.ready.then(() => render());
+render();
+</script>
+</body>
+</html>
