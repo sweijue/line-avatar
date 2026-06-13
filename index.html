@@ -472,6 +472,15 @@ function render() {
   drawBg(sqCtx, W, st);
   drawTextOnCtx(sqCtx, size, lines, st, cx, cy);
   drawSqBorder(sqCtx, W, border.sq);
+  // also draw circle border on square canvas so it appears in download
+  if (border.ci.on) {
+    const half = border.ci.width / 2;
+    sqCtx.strokeStyle = border.ci.color;
+    sqCtx.lineWidth = border.ci.width;
+    sqCtx.beginPath();
+    sqCtx.arc(W/2, W/2, W/2 - half, 0, Math.PI * 2);
+    sqCtx.stroke();
+  }
 
   // circle canvas — fully self-contained circular canvas
   ciCtx.clearRect(0, 0, W, W);
@@ -631,6 +640,14 @@ g('dlBtn').addEventListener('click', () => {
     hc.strokeStyle = border.sq.color;
     hc.lineWidth = border.sq.width*scale;
     hc.strokeRect(half,half,HI-border.sq.width*scale,HI-border.sq.width*scale);
+  }
+  if (border.ci.on) {
+    const half = border.ci.width*scale/2;
+    hc.strokeStyle = border.ci.color;
+    hc.lineWidth = border.ci.width*scale;
+    hc.beginPath();
+    hc.arc(HI/2, HI/2, HI/2 - half, 0, Math.PI*2);
+    hc.stroke();
   }
   const img = hi.toDataURL('image/png');
   const a = document.createElement('a');
